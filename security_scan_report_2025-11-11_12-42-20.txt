@@ -1,0 +1,4 @@
+Security Scan Report - 2025-11-11 12:42:20
+==========================================
+⚠️ File permission issue: db_connect.php (Current: 0666, Expected: 0644)
+⚠️ Display errors is enabled - should be disabled in production
