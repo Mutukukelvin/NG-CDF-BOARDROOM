@@ -13,11 +13,21 @@ $room_id = isset($_GET['room_id']) ? intval($_GET['room_id']) : 0;
 
 // Fetch available rooms
 $rooms = [];
-$rooms_sql = "SELECT * FROM rooms";
+$rooms_sql = "SELECT * FROM rooms WHERE is_active = 1";
 $rooms_result = $conn->query($rooms_sql);
 if ($rooms_result->num_rows > 0) {
     while($room = $rooms_result->fetch_assoc()) {
         $rooms[] = $room;
+    }
+}
+
+// Fetch available meals and drinks
+$available_items = [];
+$items_sql = "SELECT * FROM meals_drinks WHERE available = 1 ORDER BY category, name";
+$items_result = $conn->query($items_sql);
+if ($items_result->num_rows > 0) {
+    while($item = $items_result->fetch_assoc()) {
+        $available_items[] = $item;
     }
 }
 
@@ -34,12 +44,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $equipment = isset($_POST['equipment']) ? implode(", ", $_POST['equipment']) : 'None';
         $attendees = intval($_POST['attendees']);
         $specialRequests = trim($_POST['special-requests']);
+        $refreshments = isset($_POST['refreshments']) ? implode(", ", $_POST['refreshments']) : 'None';
         
         // Check for required fields
         if (empty($eventName) || empty($bookingDate) || empty($timeSlot) || $roomId == 0) {
             $error = "Event name, room, date, and time slot are required.";
         } else {
-            // Check for booking conflicts (status column exists as confirmed)
+            // Check for booking conflicts
             $conflict_sql = "SELECT id FROM bookings WHERE room_id = ? AND booking_date = ? AND time_slot = ? AND status IN ('Pending', 'Approved')";
             $conflict_stmt = $conn->prepare($conflict_sql);
             $conflict_stmt->bind_param("iss", $roomId, $bookingDate, $timeSlot);
@@ -49,10 +60,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             if ($conflict_result->num_rows > 0) {
                 $error = "Sorry, this time slot is already booked for the selected room. Please choose a different time or room.";
             } else {
-                // Insert booking with status (status column exists)
-                $sql = "INSERT INTO bookings (user_id, room_id, event_name, event_description, booking_date, time_slot, equipment, attendees, special_requests, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending')";
+                // Insert booking
+                $sql = "INSERT INTO bookings (user_id, room_id, event_name, event_description, booking_date, time_slot, equipment, attendees, special_requests, refreshments, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending')";
                 $stmt = $conn->prepare($sql);
-                $stmt->bind_param("iisssssis", $userId, $roomId, $eventName, $eventDescription, $bookingDate, $timeSlot, $equipment, $attendees, $specialRequests);
+                $stmt->bind_param("iisssssiss", $userId, $roomId, $eventName, $eventDescription, $bookingDate, $timeSlot, $equipment, $attendees, $specialRequests, $refreshments);
                 
                 if ($stmt->execute()) {
                     $message = "Booking request submitted successfully! You will be redirected shortly.";
@@ -89,21 +100,21 @@ $conn->close();
             background: linear-gradient(135deg, rgba(249,250,251,0.95) 0%, rgba(243,244,246,0.95) 100%);
             border-radius: 0.75rem;
             box-shadow: 0 6px 18px rgba(0,0,0,0.06);
-            padding: 1rem; /* reduced */
-            max-width: 520px; /* narrower */
-            margin: 0.5rem auto; /* smaller vertical margin */
+            padding: 1rem;
+            max-width: 520px;
+            margin: 0.5rem auto;
         }
         .booking-section h2 {
             color: #1F2937;
-            font-size: 1.125rem; /* text-xl */
+            font-size: 1.125rem;
             margin-bottom: 0.5rem;
         }
         .form-input {
             border: 1px solid #D1D5DB;
             border-radius: 0.375rem;
-            padding: 0.4rem; /* smaller */
+            padding: 0.4rem;
             transition: border-color 0.2s;
-            font-size: 0.85rem; /* slightly smaller */
+            font-size: 0.85rem;
         }
         .form-input:focus {
             border-color: #3B82F6;
@@ -113,17 +124,15 @@ $conn->close();
         .submit-button {
             background-color: #3B82F6;
             color: white;
-            padding: 0.4rem 0.8rem; /* reduced */
+            padding: 0.4rem 0.8rem;
             border-radius: 0.375rem;
             transition: background-color 0.2s;
             font-size: 0.9rem;
         }
         .submit-button:hover { background-color: #2563EB; }
-        /* compact spacing for the form */
         .compact-form .form-row { margin-bottom: 0.5rem; }
         .compact-form label { font-size: 0.8rem; }
         
-        /* time-slot button styles */
         .time-slot-btn {
             display: inline-flex;
             align-items: center;
@@ -141,14 +150,12 @@ $conn->close();
         .time-slot-btn.booked { 
             opacity: 0.45; 
             cursor: not-allowed; 
-            pointer-events: auto; /* Allow hover */
         }
         .time-slot-btn.booked:hover { 
             border-color: #EF4444;
             background-color: #FEF2F2;
         }
         
-        /* Required field asterisk */
         .required-field::after {
             content: " *";
             color: #EF4444;
@@ -157,7 +164,7 @@ $conn->close();
 </head>
 <body class="bg-gray-100">
     <?php include 'navbar.php'; ?>
-    <main class="container mx-auto px-4 py-6"> <!-- reduced vertical padding -->
+    <main class="container mx-auto px-4 py-6">
         <section class="booking-section rounded-lg shadow-lg" data-aos="fade-up">
             <h2 class="text-2xl font-bold text-gray-800 mb-2">New Booking</h2>
             <?php if ($message): ?>
@@ -170,7 +177,7 @@ $conn->close();
                     <span class="block sm:inline"><?= $error ?></span>
                 </div>
             <?php endif; ?>
-            <form action="booking.php" method="POST" class="compact-form"> <!-- compact form class -->
+            <form action="booking.php" method="POST" class="compact-form">
                 <div class="form-row">
                     <label for="room_id" class="block text-sm font-medium text-gray-700 required-field">Select Boardroom</label>
                     <select id="room_id" name="room_id" required class="form-input mt-1 block w-full">
@@ -190,7 +197,7 @@ $conn->close();
                     <label for="event-description" class="block text-sm font-medium text-gray-700">Event Description</label>
                     <textarea id="event-description" name="event-description" rows="1" class="form-input mt-1 block w-full"></textarea>
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-2"> <!-- tighter grid gap -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
                     <div class="form-row">
                         <label for="booking-date" class="block text-sm font-medium text-gray-700 required-field">Date</label>
                         <input type="date" id="booking-date" name="booking-date" min="<?= date('Y-m-d') ?>" required class="form-input mt-1 block w-full">
@@ -198,7 +205,6 @@ $conn->close();
                     <div class="form-row">
                         <label for="time-slot" class="block text-sm font-medium text-gray-700 required-field">Time Slot</label>
                         <div id="time-slot-container" class="mt-1 grid grid-cols-3 gap-2"></div>
-                        <!-- hidden input that will carry chosen slot to the server -->
                         <input type="hidden" id="time-slot" name="time-slot" value="" required>
                     </div>
                 </div>
@@ -219,6 +225,57 @@ $conn->close();
                         </label>
                     </div>
                 </div>
+                
+                <!-- Refreshments Section -->
+                <div class="form-row">
+                    <label class="block text-sm font-medium text-gray-700">Refreshments (Optional)</label>
+                    <p class="text-xs text-gray-500 mb-2">Complimentary meals and drinks provided by NG-CDF</p>
+                    <div class="mt-1 space-y-2">
+                        <?php if (!empty($available_items)): ?>
+                            <?php 
+                            $meals = array_filter($available_items, function($item) { return $item['category'] == 'meal'; });
+                            $drinks = array_filter($available_items, function($item) { return $item['category'] == 'drink'; });
+                            ?>
+                            
+                            <?php if (!empty($meals)): ?>
+                            <div>
+                                <p class="text-sm font-medium text-gray-700 mb-2">Meals:</p>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                    <?php foreach ($meals as $meal): ?>
+                                    <label class="flex items-center text-sm">
+                                        <input type="checkbox" name="refreshments[]" value="<?= $meal['name'] ?>" class="h-4 w-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500">
+                                        <span class="ml-2 text-gray-900"><?= htmlspecialchars($meal['name']) ?></span>
+                                        <?php if (!empty($meal['description'])): ?>
+                                        <span class="ml-1 text-xs text-gray-500">(<?= htmlspecialchars($meal['description']) ?>)</span>
+                                        <?php endif; ?>
+                                    </label>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
+                            <?php endif; ?>
+                            
+                            <?php if (!empty($drinks)): ?>
+                            <div>
+                                <p class="text-sm font-medium text-gray-700 mb-2">Drinks:</p>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                    <?php foreach ($drinks as $drink): ?>
+                                    <label class="flex items-center text-sm">
+                                        <input type="checkbox" name="refreshments[]" value="<?= $drink['name'] ?>" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                                        <span class="ml-2 text-gray-900"><?= htmlspecialchars($drink['name']) ?></span>
+                                        <?php if (!empty($drink['description'])): ?>
+                                        <span class="ml-1 text-xs text-gray-500">(<?= htmlspecialchars($drink['description']) ?>)</span>
+                                        <?php endif; ?>
+                                    </label>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
+                            <?php endif; ?>
+                        <?php else: ?>
+                            <p class="text-sm text-gray-500">No refreshments currently available.</p>
+                        <?php endif; ?>
+                    </div>
+                </div>
+
                 <div class="form-row">
                     <label for="attendees" class="block text-sm font-medium text-gray-700">Attendees</label>
                     <input type="number" id="attendees" name="attendees" min="1" class="form-input mt-1 block w-full">
@@ -250,7 +307,7 @@ $conn->close();
         // Set minimum date to today
         document.getElementById('booking-date').min = new Date().toISOString().split('T')[0];
         
-        // ----- time-slot UI logic -----
+        // Time-slot UI logic
         (function(){
             const timeSlots = ['9am-10am','10am-11am','11am-12pm','1pm-2pm','2pm-3pm','3pm-4pm'];
             const container = document.getElementById('time-slot-container');
@@ -268,10 +325,9 @@ $conn->close();
                     btn.dataset.slot = slot;
                     if (booked.includes(slot)) {
                         btn.classList.add('booked');
-                        btn.title = 'Time Slot Booked'; // Corrected tooltip text
+                        btn.title = 'Time Slot Booked';
                     } else {
                         btn.addEventListener('click', () => {
-                            // clear selected
                             container.querySelectorAll('.time-slot-btn').forEach(b => b.classList.remove('selected'));
                             btn.classList.add('selected');
                             hiddenInput.value = slot;
@@ -284,7 +340,6 @@ $conn->close();
             async function fetchBookedSlots() {
                 const room = parseInt(roomSelect.value || 0, 10);
                 const date = dateInput.value || '';
-                // reset selection when room or date not chosen
                 hiddenInput.value = '';
                 if (!room || !date) {
                     renderButtons([]);
@@ -299,21 +354,15 @@ $conn->close();
                     const booked = Array.isArray(data.booked) ? data.booked : [];
                     renderButtons(booked);
                 } catch (e) {
-                    // on error just render empty (all available)
                     renderButtons([]);
                 }
             }
 
-            // initial render (no room/date yet)
             renderButtons([]);
-
-            // update booked slots when room or date changes
             roomSelect.addEventListener('change', fetchBookedSlots);
             dateInput.addEventListener('change', fetchBookedSlots);
 
-            // If a room is pre-selected from URL parameter, trigger the change event to load booked slots
             <?php if ($room_id > 0): ?>
-                // Small delay to ensure DOM is ready
                 setTimeout(() => {
                     roomSelect.dispatchEvent(new Event('change'));
                 }, 100);

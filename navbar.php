@@ -1,5 +1,7 @@
+<?php
+session_start();
+?>
 <style>
-    /* central navbar height and spacer */
     :root { --navbar-height: 64px; }
     @media (max-width: 640px) { :root { --navbar-height: 56px; } }
     .navbar-spacer { height: var(--navbar-height); width: 100%; }
@@ -10,7 +12,7 @@
         <div class="flex justify-between h-16">
             <div class="flex items-center">
                 <div class="flex-shrink-0 flex items-center">
-                    <img class="h-8 w-8" src="cdfpicture.jpg" alt="NG-CDF Logo">
+                    <img class="h-8 w-8 rounded" src="cdfpicture.jpg" alt="NG-CDF Logo">
                     <span class="ml-2 text-xl font-bold text-blue-600">NG-CDF Boardrooms</span>
                 </div>
             </div>
@@ -18,20 +20,34 @@
             <div class="hidden sm:ml-6 sm:flex sm:items-center space-x-4">
                 <?php if (isset($_SESSION['user_id'])): ?>
                     <?php if ($_SESSION['role'] == 'admin'): ?>
-                        <a href="admin_dashboard.php" class="text-gray-700 hover:text-blue-600 px-3 py-2 text-sm font-medium <?= basename($_SERVER['PHP_SELF']) == 'admin_dashboard.php' ? 'border-b-2 border-blue-600' : '' ?>">Admin Dashboard</a>
+                        <a href="admin_dashboard.php" class="text-gray-700 hover:text-blue-600 px-3 py-2 text-sm font-medium <?= basename($_SERVER['PHP_SELF']) == 'admin_dashboard.php' ? 'border-b-2 border-blue-600' : '' ?>">
+                            Admin Dashboard (<?= ucfirst(str_replace('_', ' ', $_SESSION['admin_type'])) ?>)
+                        </a>
                     <?php endif; ?>
                     <a href="index.php" class="text-gray-700 hover:text-blue-600 px-3 py-2 text-sm font-medium <?= basename($_SERVER['PHP_SELF']) == 'index.php' ? 'border-b-2 border-blue-600' : '' ?>">Home</a>
                     <a href="bookings.php" class="text-gray-700 hover:text-blue-600 px-3 py-2 text-sm font-medium <?= basename($_SERVER['PHP_SELF']) == 'bookings.php' ? 'border-b-2 border-blue-600' : '' ?>">My Bookings</a>
                     <a href="rooms.php" class="text-gray-700 hover:text-blue-600 px-3 py-2 text-sm font-medium <?= basename($_SERVER['PHP_SELF']) == 'rooms.php' ? 'border-b-2 border-blue-600' : '' ?>">Rooms</a>
                     <a href="booking.php" class="text-gray-700 hover:text-blue-600 px-3 py-2 text-sm font-medium <?= basename($_SERVER['PHP_SELF']) == 'booking.php' ? 'border-b-2 border-blue-600' : '' ?>">New Booking</a>
-                    
-                    <a href="logout.php" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium transition duration-300">
-                        <i data-feather="log-out" class="w-4 h-4 inline mr-1"></i>
-                        Logout
+                    <a href="calendar.php" class="text-gray-700 hover:text-blue-600 px-3 py-2 text-sm font-medium <?= basename($_SERVER['PHP_SELF']) == 'calendar.php' ? 'border-b-2 border-blue-600' : '' ?>">
+                        <i data-feather="calendar" class="w-4 h-4 inline mr-1"></i>Calendar
                     </a>
+                    
+                    <div class="flex items-center space-x-2">
+                        <span class="text-sm text-gray-700">
+                            Welcome, <?= htmlspecialchars($_SESSION['username']) ?>
+                            <?php if ($_SESSION['role'] == 'admin'): ?>
+                                <span class="text-xs text-purple-600">(<?= ucfirst(str_replace('_', ' ', $_SESSION['admin_type'])) ?>)</span>
+                            <?php endif; ?>
+                        </span>
+                        <a href="logout.php" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium transition duration-300">
+                            <i data-feather="log-out" class="w-4 h-4 inline mr-1"></i>
+                            Logout
+                        </a>
+                    </div>
                 <?php else: ?>
                     <a href="index.php" class="text-gray-700 hover:text-blue-600 px-3 py-2 text-sm font-medium">Home</a>
-                    <a href="login.php" class="text-gray-700 hover:text-blue-600 px-3 py-2 text-sm font-medium">Login</a>
+                    <a href="login.php" class="text-gray-700 hover:text-blue-600 px-3 py-2 text-sm font-medium">User Login</a>
+                    <a href="admin_login.php" class="text-gray-700 hover:text-purple-600 px-3 py-2 text-sm font-medium">Admin Login</a>
                     <a href="register.php" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition duration-300">Register</a>
                 <?php endif; ?>
             </div>
@@ -50,16 +66,30 @@
         <div class="px-2 pt-2 pb-3 space-y-1">
             <?php if (isset($_SESSION['user_id'])): ?>
                 <?php if ($_SESSION['role'] == 'admin'): ?>
-                    <a href="admin_dashboard.php" class="block px-3 py-2 text-gray-700 hover:text-blue-600">Admin Dashboard</a>
+                    <a href="admin_dashboard.php" class="block px-3 py-2 text-gray-700 hover:text-blue-600">
+                        Admin Dashboard (<?= ucfirst(str_replace('_', ' ', $_SESSION['admin_type'])) ?>)
+                    </a>
                 <?php endif; ?>
                 <a href="index.php" class="block px-3 py-2 text-gray-700 hover:text-blue-600">Home</a>
                 <a href="bookings.php" class="block px-3 py-2 text-gray-700 hover:text-blue-600">My Bookings</a>
                 <a href="rooms.php" class="block px-3 py-2 text-gray-700 hover:text-blue-600">Rooms</a>
                 <a href="booking.php" class="block px-3 py-2 text-gray-700 hover:text-blue-600">New Booking</a>
-                <a href="logout.php" class="block px-3 py-2 text-red-600 hover:text-red-800">Logout</a>
+                <a href="calendar.php" class="block px-3 py-2 text-gray-700 hover:text-blue-600">
+                    <i data-feather="calendar" class="w-4 h-4 inline mr-1"></i>Calendar
+                </a>
+                <div class="border-t border-gray-200 pt-2">
+                    <span class="block px-3 py-2 text-sm text-gray-500">
+                        Welcome, <?= htmlspecialchars($_SESSION['username']) ?>
+                        <?php if ($_SESSION['role'] == 'admin'): ?>
+                            <br><span class="text-xs text-purple-600">(<?= ucfirst(str_replace('_', ' ', $_SESSION['admin_type'])) ?>)</span>
+                        <?php endif; ?>
+                    </span>
+                    <a href="logout.php" class="block px-3 py-2 text-red-600 hover:text-red-800">Logout</a>
+                </div>
             <?php else: ?>
                 <a href="index.php" class="block px-3 py-2 text-gray-700 hover:text-blue-600">Home</a>
-                <a href="login.php" class="block px-3 py-2 text-gray-700 hover:text-blue-600">Login</a>
+                <a href="login.php" class="block px-3 py-2 text-gray-700 hover:text-blue-600">User Login</a>
+                <a href="admin_login.php" class="block px-3 py-2 text-purple-600 hover:text-purple-800">Admin Login</a>
                 <a href="register.php" class="block px-3 py-2 text-blue-600 hover:text-blue-800">Register</a>
             <?php endif; ?>
         </div>

@@ -37,29 +37,28 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             if ($check_result->num_rows > 0) {
                 $error = "Username or email already exists.";
             } else {
-                // Hash password and insert user
+                // Hash password and insert user as regular user (not admin)
                 $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-                $insert_sql = "INSERT INTO users (username, email, password) VALUES (?, ?, ?)";
+                $insert_sql = "INSERT INTO users (username, email, password, role) VALUES (?, ?, ?, 'user')";
                 $insert_stmt = $conn->prepare($insert_sql);
                 $insert_stmt->bind_param("sss", $username, $email, $hashed_password);
                 
                 if ($insert_stmt->execute()) {
-                    // Get the newly created user ID
+                    // Auto-login the user
                     $new_user_id = $insert_stmt->insert_id;
                     
-                    // Fetch the complete user data (without role column)
-                    $user_sql = "SELECT id, username, email FROM users WHERE id = ?";
+                    $user_sql = "SELECT id, username, email, role FROM users WHERE id = ?";
                     $user_stmt = $conn->prepare($user_sql);
                     $user_stmt->bind_param("i", $new_user_id);
                     $user_stmt->execute();
                     $user_result = $user_stmt->get_result();
                     $user = $user_result->fetch_assoc();
                     
-                    // Auto-login the user (set default role as 'user')
                     $_SESSION['user_id'] = $user['id'];
                     $_SESSION['username'] = $user['username'];
                     $_SESSION['email'] = $user['email'];
-                    $_SESSION['role'] = 'user'; // Default role
+                    $_SESSION['role'] = $user['role'];
+                    $_SESSION['admin_type'] = null;
                     
                     $success = "Registration successful! Redirecting you to dashboard...";
                     
@@ -103,12 +102,19 @@ $conn->close();
             <div>
                 <div class="flex items-center justify-center">
                     <img class="h-8 w-8 rounded" src="cdfpicture.jpg" alt="NG-CDF Logo">
+                    <span class="ml-2 text-xl font-bold text-blue-600">NG-CDF Boardrooms</span>
                 </div>
                 <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
                     Create your account
                 </h2>
                 <p class="mt-2 text-center text-sm text-gray-600">
                     Or <a href="login.php" class="font-medium text-blue-600 hover:text-blue-500">sign in to your existing account</a>
+                </p>
+                <p class="mt-1 text-center text-xs text-gray-500">
+                    <a href="admin_login.php" class="text-purple-600 hover:text-purple-500">
+                        <i data-feather="shield" class="h-3 w-3 inline mr-1"></i>
+                        Administrator registration is by invitation only
+                    </a>
                 </p>
             </div>
             
@@ -169,7 +175,7 @@ $conn->close();
                         <span class="absolute left-0 inset-y-0 flex items-center pl-3">
                             <i data-feather="user-plus" class="h-5 w-5 text-blue-300"></i>
                         </span>
-                        Create Account
+                        Create User Account
                     </button>
                 </div>
 
